@@ -233,20 +233,51 @@ print('\\nAll files created successfully!')
     await sandbox.runCode(`
 import subprocess
 import sys
+import time
+import random
 
 print('Installing npm packages...')
-result = subprocess.run(
-    ['npm', 'install'],
-    cwd='/home/user/app',
-    capture_output=True,
-    text=True
-)
 
-if result.returncode == 0:
+def run_with_retry(command, max_retries=3, base_delay=2):
+    """Run a command with exponential backoff retry logic"""
+    for attempt in range(max_retries):
+        try:
+            print(f'Attempt {attempt + 1}/{max_retries}: {" ".join(command)}')
+            result = subprocess.run(
+                command,
+                cwd='/home/user/app',
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout per attempt
+            )
+            
+            if result.returncode == 0:
+                print(f'✓ Command succeeded on attempt {attempt + 1}')
+                return result
+            else:
+                print(f'⚠ Attempt {attempt + 1} failed with exit code {result.returncode}')
+                if result.stderr:
+                    print(f'Error output: {result.stderr[:500]}')
+                    
+        except subprocess.TimeoutExpired:
+            print(f'⚠ Attempt {attempt + 1} timed out')
+        except Exception as e:
+            print(f'⚠ Attempt {attempt + 1} failed with exception: {str(e)}')
+        
+        if attempt < max_retries - 1:
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            print(f'Waiting {delay:.1f} seconds before retry...')
+            time.sleep(delay)
+    
+    print(f'✗ All {max_retries} attempts failed')
+    return None
+
+# Install dependencies with retry logic
+install_result = run_with_retry(['npm', 'install'])
+if install_result and install_result.returncode == 0:
     print('✓ Dependencies installed successfully')
 else:
-    print(f'⚠ Warning: npm install had issues: {result.stderr}')
-    # Continue anyway as it might still work
+    print('⚠ Warning: npm install failed after retries, but continuing...')
     `);
     
     // Start Vite dev server
@@ -255,45 +286,90 @@ else:
 import subprocess
 import os
 import time
+import signal
 
 os.chdir('/home/user/app')
 
 # Kill any existing Vite processes
-subprocess.run(['pkill', '-f', 'vite'], capture_output=True)
+try:
+    subprocess.run(['pkill', '-f', 'vite'], capture_output=True, timeout=10)
+except subprocess.TimeoutExpired:
+    print('⚠ pkill timed out, continuing...')
+
 time.sleep(1)
 
-# Start Vite dev server
+# Start Vite dev server with retry logic
 env = os.environ.copy()
 env['FORCE_COLOR'] = '0'
+env['NODE_OPTIONS'] = '--max-old-space-size=2048'
 
-process = subprocess.Popen(
-    ['npm', 'run', 'dev'],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    env=env
-)
+def start_dev_server_with_retry(max_retries=3):
+    """Start dev server with retry logic"""
+    for attempt in range(max_retries):
+        try:
+            print(f'Starting dev server - attempt {attempt + 1}/{max_retries}')
+            
+            process = subprocess.Popen(
+                ['npm', 'run', 'dev'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None
+            )
+            
+            # Wait a bit to see if process starts successfully
+            time.sleep(3)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                print(f'✓ Vite dev server started successfully with PID: {process.pid}')
+                return process
+            else:
+                stdout, stderr = process.communicate()
+                print(f'⚠ Dev server failed to start on attempt {attempt + 1}')
+                if stderr:
+                    print(f'Error: {stderr[:500]}')
+                    
+        except Exception as e:
+            print(f'⚠ Exception starting dev server on attempt {attempt + 1}: {str(e)}')
+        
+        if attempt < max_retries - 1:
+            delay = 2 * (2 ** attempt) + random.uniform(0, 1)
+            print(f'Waiting {delay:.1f} seconds before retry...')
+            time.sleep(delay)
+    
+    print('✗ Failed to start dev server after all retries')
+    return None
 
-print(f'✓ Vite dev server started with PID: {process.pid}')
-print('Waiting for server to be ready...')
+process = start_dev_server_with_retry()
+if process:
+    print('Waiting for server to be ready...')
+else:
+    print('⚠ Dev server startup failed, but sandbox is still available')
     `);
     
     // Wait for Vite to be fully ready
-    await new Promise(resolve => setTimeout(resolve, appConfig.e2b.viteStartupDelay));
+    await new Promise(resolve => setTimeout(resolve, appConfig.e2b.viteStartupDelay * 1.5));
     
     // Force Tailwind CSS to rebuild by touching the CSS file
     await sandbox.runCode(`
 import os
 import time
 
-# Touch the CSS file to trigger rebuild
-css_file = '/home/user/app/src/index.css'
-if os.path.exists(css_file):
-    os.utime(css_file, None)
-    print('✓ Triggered CSS rebuild')
-    
-# Also ensure PostCSS processes it
-time.sleep(2)
-print('✓ Tailwind CSS should be loaded')
+try:
+    # Touch the CSS file to trigger rebuild
+    css_file = '/home/user/app/src/index.css'
+    if os.path.exists(css_file):
+        os.utime(css_file, None)
+        print('✓ Triggered CSS rebuild')
+        
+        # Also ensure PostCSS processes it
+        time.sleep(3)
+        print('✓ Tailwind CSS should be loaded')
+    else:
+        print('⚠ CSS file not found, skipping rebuild trigger')
+except Exception as e:
+    print(f'⚠ Failed to trigger CSS rebuild: {str(e)}')
     `);
 
     // Store sandbox globally
