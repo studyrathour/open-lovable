@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: open-lovable
+    env: node
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
