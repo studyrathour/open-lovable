@@ -1,5 +1,11 @@
 [build]
   command = "pnpm build"
 
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
 [dev]
   command = "pnpm dev"
