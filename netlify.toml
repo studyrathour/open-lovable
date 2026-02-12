@@ -3,9 +3,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  PNPM_FLAGS = "--shamefully-hoist"
 
 [dev]
   command = "pnpm dev"
