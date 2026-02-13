@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
     if (!FIRECRAWL_API_KEY) {
-      throw new Error('FIRECRAWL_API_KEY environment variable is not set');
+      throw new Error('FIRECRAWL_API_KEY environment variable is not set. Please configure it in your Netlify site settings.');
     }
     
     // Make request to Firecrawl API with maxAge for 500% faster scraping

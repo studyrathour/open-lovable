@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { appConfig } from '@/config/app.config';
 import { Button } from '@/components/ui/button';
@@ -44,7 +44,7 @@ interface ChatMessage {
   };
 }
 
-export default function AISandboxPage() {
+function AISandboxPageContent() {
   const [sandboxData, setSandboxData] = useState<SandboxData | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ text: 'Not connected', active: false });
@@ -121,7 +121,7 @@ export default function AISandboxPage() {
     thinkingText?: string;
     thinkingDuration?: number;
     currentFile?: { path: string; content: string; type: string };
-    files: Array<{ path: string; content: string; type: string; completed: boolean }>;
+    files: Array<{ path: string; content: string; type: string; completed: boolean; edited?: boolean }>;
     lastProcessedPosition: number;
     isEdit?: boolean;
   }>({
@@ -531,8 +531,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     });
                   } else if (data.message.includes('Creating files') || data.message.includes('Applying')) {
                     setCodeApplicationState({ 
-                      stage: 'applying',
-                      filesGenerated: results.filesCreated 
+                      stage: 'applying'
                     });
                   }
                   break;
@@ -627,7 +626,12 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           results: finalData.results,
           explanation: finalData.explanation,
           structure: finalData.structure,
-          message: finalData.message
+          message: finalData.message,
+          autoCompleted: finalData.autoCompleted,
+          autoCompletedComponents: finalData.autoCompletedComponents,
+          warning: finalData.warning,
+          missingImports: finalData.missingImports,
+          debug: finalData.debug
         };
         
         if (data.success) {
@@ -2796,24 +2800,24 @@ Focus on the key sections and content, making it clean and modern.`;
               href="https://github.com/mendableai/open-lovable" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#36322F] text-white px-3 py-2 rounded-[10px] text-sm font-medium [box-shadow:inset_0px_-2px_0px_0px_#171310,_0px_1px_6px_0px_rgba(58,_33,_8,_58%)] hover:translate-y-[1px] hover:scale-[0.98] hover:[box-shadow:inset_0px_-1px_0px_0px_#171310,_0px_1px_3px_0px_rgba(58,_33,_8,_40%)] active:translate-y-[2px] active:scale-[0.97] active:[box-shadow:inset_0px_1px_1px_0px_#171310,_0px_1px_2px_0px_rgba(58,_33,_8,_30%)] transition-all duration-200"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-[10px] text-sm font-medium hover:opacity-90 transition-all duration-200"
             >
               <FiGithub className="w-4 h-4" />
-              <span>Use this template</span>
+              <span>View Source</span>
             </a>
           </div>
           
           {/* Main content */}
           <div className="relative z-10 h-full flex items-center justify-center px-4">
             <div className="text-center max-w-4xl min-w-[600px] mx-auto">
-              {/* Firecrawl-style Header */}
+              {/* Vercel-style Header */}
               <div className="text-center">
-                <h1 className="text-[2.5rem] lg:text-[3.8rem] text-center text-[#36322F] font-semibold tracking-tight leading-[0.9] animate-[fadeIn_0.8s_ease-out]">
-                  <span className="hidden md:inline">Open Lovable</span>
-                  <span className="md:hidden">Open Lovable</span>
+                <h1 className="text-[2.5rem] lg:text-[3.8rem] text-center text-foreground font-semibold tracking-tight leading-[0.9] animate-[fadeIn_0.8s_ease-out]">
+                  <span className="hidden md:inline">Master App Builder</span>
+                  <span className="md:hidden">Master App Builder</span>
                 </h1>
                 <motion.p 
-                  className="text-base lg:text-lg max-w-lg mx-auto mt-2.5 text-zinc-500 text-center text-balance"
+                  className="text-base lg:text-lg max-w-lg mx-auto mt-2.5 text-muted-foreground text-center text-balance"
                   animate={{
                     opacity: showStyleSelector ? 0.7 : 1
                   }}
@@ -2992,7 +2996,7 @@ Focus on the key sections and content, making it clean and modern.`;
                 >
                   {appConfig.ai.availableModels.map(model => (
                     <option key={model} value={model}>
-                      {appConfig.ai.modelDisplayNames[model] || model}
+                      {appConfig.ai.modelDisplayNames[model as keyof typeof appConfig.ai.modelDisplayNames] || model}
                     </option>
                   ))}
                 </select>
@@ -3024,7 +3028,7 @@ Focus on the key sections and content, making it clean and modern.`;
           >
             {appConfig.ai.availableModels.map(model => (
               <option key={model} value={model}>
-                {appConfig.ai.modelDisplayNames[model] || model}
+                {appConfig.ai.modelDisplayNames[model as keyof typeof appConfig.ai.modelDisplayNames] || model}
               </option>
             ))}
           </select>
@@ -3422,5 +3426,13 @@ Focus on the key sections and content, making it clean and modern.`;
 
 
     </div>
+  );
+}
+
+export default function AISandboxPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AISandboxPageContent />
+    </Suspense>
   );
 }
