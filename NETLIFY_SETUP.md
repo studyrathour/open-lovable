@@ -7,8 +7,8 @@ To ensure your application "Master App Builder" runs correctly on Netlify, you m
 Go to **Site configuration > Environment variables** in your Netlify dashboard and add the following keys:
 
 ### Sandbox & Web Scraping
-*   `E2B_API_KEY`: Your API key from [e2b.dev](https://e2b.dev) (Required for code execution sandboxes)
-*   `FIRECRAWL_API_KEY`: Your API key from [firecrawl.dev](https://firecrawl.dev) (Required for web scraping)
+*   `E2B_API_KEY`: Your API key from [e2b.dev](https://e2b.dev) (Required for code execution sandboxes). Ensure this is set correctly to avoid "401: authorization header is missing" errors.
+*   `FIRECRAWL_API_KEY`: Your API key from [firecrawl.dev](https://firecrawl.dev) (Required for web scraping). Ensure this is set correctly to avoid scraping failures.
 
 ### AI Model Providers
 *You need at least one of these to generate code:*

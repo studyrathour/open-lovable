@@ -37,8 +37,14 @@ export async function POST() {
 
     // Create base sandbox - we'll set up Vite ourselves for full control
     console.log(`[create-ai-sandbox] Creating base E2B sandbox with ${appConfig.e2b.timeoutMinutes} minute timeout...`);
+
+    const E2B_API_KEY = process.env.E2B_API_KEY;
+    if (!E2B_API_KEY) {
+      throw new Error('E2B_API_KEY environment variable is not set. Please configure it in your Netlify site settings.');
+    }
+
     sandbox = await Sandbox.create({ 
-      apiKey: process.env.E2B_API_KEY,
+      apiKey: E2B_API_KEY,
       timeoutMs: appConfig.e2b.timeoutMs
     });
     
